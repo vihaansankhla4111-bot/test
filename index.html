@@ -772,18 +772,20 @@
   <!-- Toast Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- Scripts -->
+ <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script type="module" src="js/firebase-config.js"></script>
-  <script type="module" src="js/icons.js"></script>
-  <script type="module" src="js/utils.js"></script>
-  <script type="module" src="js/database.js"></script>
-  <script type="module" src="js/liveNews.js"></script>
-  <script type="module" src="js/auth.js"></script>
-  <script type="module" src="js/components.js"></script>
-  <script type="module" src="js/seeder.js"></script>
-  <script type="module" src="js/app.js"></script>
+
+  <!-- ✅ FIXED: files are in root, not js/ subfolder -->
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="icons.js"></script>
+  <script type="module" src="utils.js"></script>
+  <script type="module" src="database.js"></script>
+  <script type="module" src="liveNews.js"></script>
+  <script type="module" src="auth.js"></script>
+  <script type="module" src="components.js"></script>
+  <script type="module" src="seeder.js"></script>
+  <script type="module" src="app.js"></script>
 
   <script>
     (function () { var t = localStorage.getItem('techol_theme') || 'dark'; document.documentElement.setAttribute('data-theme', t) })();
@@ -794,6 +796,4 @@
     setTimeout(() => { const loader = document.getElementById('loading-screen'); if (loader) { loader.classList.add('fade-out'); setTimeout(() => loader.remove(), 700) } }, 6000);
   </script>
 </body>
-
-
 </html>
