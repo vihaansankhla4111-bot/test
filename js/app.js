@@ -895,41 +895,14 @@ const App = {
     RealtimeDataEngine.init();
 
     // Register Global Live Tasks
-    RealtimeDataEngine.register('sector_momentum', async () => RealtimeDataEngine.getLiveSectorData(), (data) => {
+    RealtimeDataEngine.register('sector_momentum', Database.getSectorMomentum.bind(Database), (data) => {
       const board = document.getElementById('live-momentum-container');
       if (board) board.innerHTML = Components.sectorMomentumBoard(data);
     });
 
-    RealtimeDataEngine.register('funding_alerts', async () => RealtimeDataEngine.getLiveFundingAlerts(), (data) => {
+    RealtimeDataEngine.register('funding_alerts', Database.getFundingAlerts.bind(Database), (data) => {
       const ticker = document.getElementById('live-funding-ticker-container');
       if (ticker) ticker.innerHTML = Components.fundingTicker(data);
-    });
-
-    // Live crypto price widget updater
-    const updatePriceWidget = () => {
-      const widget = document.getElementById('live-price-widget');
-      if (!widget) return;
-      const crypto = RealtimeDataEngine.getLiveCryptoData();
-      const items = ['BTC','ETH','SOL'].map(sym => {
-        const d = crypto[sym];
-        if (!d) return '';
-        const chgColor = d.change >= 0 ? '#10b981' : '#ef4444';
-        const sign = d.change >= 0 ? '+' : '';
-        const price = d.price >= 1000 ? `$${(d.price/1000).toFixed(1)}K` : `$${d.price.toFixed(1)}`;
-        return `<span style="font-size:10px;font-weight:700;display:flex;align-items:center;gap:4px"><span style="color:rgba(255,255,255,0.45)">${sym}</span><span style="color:#fff">${price}</span><span style="color:${chgColor};font-size:9px">${sign}${d.change}%</span></span>`;
-      }).filter(Boolean).join('<span style="color:rgba(255,255,255,0.1)">|</span>');
-      widget.innerHTML = items || '<span style="font-size:10px;color:rgba(255,255,255,0.3)">• • •</span>';
-    };
-    window.addEventListener('cryptoUpdated', updatePriceWidget);
-    window.addEventListener('techol_heartbeat_sync', updatePriceWidget);
-    setTimeout(updatePriceWidget, 2000);
-
-    // Live ticker populator
-    window.addEventListener('cryptoUpdated', () => {
-      if (window.RealtimeDataEngine) RealtimeDataEngine.notifyUI();
-    });
-    window.addEventListener('newsUpdated', () => {
-      if (window.RealtimeDataEngine) RealtimeDataEngine.notifyUI();
     });
 
     RealtimeDataEngine.register('feed_sidebar', async () => {
@@ -1003,7 +976,13 @@ const App = {
     </div></aside>
     <main class="main-content">
     <div class="intel-ticker-wrap" style="margin-bottom:0;border-top:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.8);backdrop-filter:blur(10px)">
-        <div id="global-ticker" style="display:flex;white-space:nowrap;animation:ticker-scroll 60s linear infinite;will-change:transform;align-items:center"><span style="font-size:11px;color:rgba(255,255,255,0.3);padding:0 20px">⚡ LOADING LIVE DATA...</span></div>
+        <div class="intel-ticker" id="global-ticker">
+            <span class="ticker-item"><span class="ticker-label">NETWORK:</span> <span style="color:var(--success)">DECENTRALIZED & STABLE</span></span>
+            <span class="ticker-item"><span class="ticker-label">ACTIVE BUILDERS:</span> 12,842</span>
+            <span class="ticker-item"><span class="ticker-trend up">▲</span> #WebGPU +45% engagement</span>
+            <span class="ticker-item"><span class="ticker-trend up">▲</span> #SolarEdge momentum rising</span>
+            <span class="ticker-item"><span class="ticker-trend down">▼</span> #LegacyOAuth deprecated by 80%</span>
+        </div>
     </div>
     <header class="top-header">
       <div style="display:flex;align-items:center;gap:var(--space-3)">
@@ -1024,8 +1003,8 @@ const App = {
         <div id="realtime-indicator-container">
           ${Components.liveStatusIndicator()}
         </div>
-        <div class="live-price-widget" id="live-price-widget" style="display:flex;align-items:center;gap:12px;background:var(--bg-secondary);padding:4px 12px;border-radius:var(--radius-full);border:1px solid var(--border-primary);margin-right:var(--space-2);font-family:var(--font-mono)">
-           <span class="live-price-loading" style="font-size:10px;color:rgba(255,255,255,0.3)">• • •</span>
+        <div style="display:flex;align-items:center;gap:var(--space-2);background:var(--bg-secondary);padding:4px 8px;border-radius:var(--radius-full);border:1px solid var(--border-primary);margin-right:var(--space-2)">
+           <span style="font-size:10px;font-weight:800;color:var(--text-secondary)">SOL: <span style="color:var(--text-primary)">184.2</span></span>
         </div>
         <button class="btn btn-icon btn-ghost" onclick="App.toggleNotifDropdown()">
           ${Icons.notifications()}
@@ -1406,9 +1385,9 @@ const App = {
   // ---- Explore ----
   async renderExplore(c) {
     const cats = ['All', 'AI & Future', 'Coding', 'Startups', 'Projects'];
-    c.innerHTML = `<div class="explore-page animate-fadeIn"><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Explore</h2><p style="color:var(--text-secondary);font-size:var(--fs-sm);margin-top:var(--space-2)">Discover trending posts and discussions</p></div>
+    c.innerHTML = `<div class="explore-page animate-fadeIn" ><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Explore</h2><p style="color:var(--text-secondary);font-size:var(--fs-sm);margin-top:var(--space-2)">Discover trending posts and discussions</p></div>
     <div class="explore-tabs">${cats.map((c, i) => `<button class="explore-tab ${i === 0 ? 'active' : ''}" onclick="App.filterExplore(this,'${c.toLowerCase()}')">${c}</button>`).join('')}</div>
-    <div id="explore-posts"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div>`;
+    <div id="explore-posts"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div> `;
     const posts = await Database.getFeedPosts(30); const html = [];
     for (const p of posts) { const a = await this.getCachedUser(p.authorId); if (a) html.push(Components.postCard(p, a)); }
     document.getElementById('explore-posts').innerHTML = html.join('') || '<p style="text-align:center;color:var(--text-tertiary);padding:var(--space-12)">No posts found</p>';
@@ -1417,14 +1396,14 @@ const App = {
   // ---- Notifications ----
   async renderNotifications(c) {
     const cu = AuthService.getUser();
-    c.innerHTML = `<div class="feed-container animate-fadeIn"><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Notifications</h2></div><div id="notif-list"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div>`;
+    c.innerHTML = `<div class="feed-container animate-fadeIn" ><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Notifications</h2></div><div id="notif-list"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div> `;
     try {
       const notifs = await Database.getNotifications(cu.uid);
       await Database.markNotificationsRead(cu.uid);
       if (!notifs.length) { document.getElementById('notif-list').innerHTML = '<div style="text-align:center;padding:var(--space-16);color:var(--text-tertiary)"><div style="font-size:48px;margin-bottom:16px"><span class="material-symbols-rounded" style="font-size:48px">notifications</span></div><h3>No notifications</h3><p style="margin-top:8px">When someone interacts with your posts, you\'ll see it here.</p></div>'; return; }
       const html = []; for (const n of notifs) {
         const u = await this.getCachedUser(n.fromUid);
-        html.push(`<div class="post-card" style="padding:var(--space-4) var(--space-6);${n.read ? '' : 'border-left:3px solid var(--accent)'}" > ${u ? Components.avatar(u, 'avatar-sm') : ''} <div style="flex:1;margin-left:var(--space-3)"><span style="font-weight:var(--fw-semibold)">${u ? u.displayName : 'Someone'}</span> <span style="color:var(--text-secondary)">${n.message || 'interacted with your post'}</span><div style="font-size:var(--fs-xs);color:var(--text-tertiary);margin-top:4px">${Utils.timeAgo(n.createdAt)}</div></div></div>`);
+        html.push(`<div class="post-card" style = "padding:var(--space-4) var(--space-6);${n.read ? '' : 'border-left:3px solid var(--accent)'}" > ${u ? Components.avatar(u, 'avatar-sm') : ''} <div style="flex:1;margin-left:var(--space-3)"><span style="font-weight:var(--fw-semibold)">${u ? u.displayName : 'Someone'}</span> <span style="color:var(--text-secondary)">${n.message || 'interacted with your post'}</span><div style="font-size:var(--fs-xs);color:var(--text-tertiary);margin-top:4px">${Utils.timeAgo(n.createdAt)}</div></div></div> `);
       }
       document.getElementById('notif-list').innerHTML = html.join('');
     } catch (e) { document.getElementById('notif-list').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);padding:var(--space-12)">No notifications yet</p>'; }
@@ -1433,7 +1412,7 @@ const App = {
   // ---- Messages ----
   async renderMessages(c) {
     const cu = AuthService.getUser(); if (!cu) return;
-    c.innerHTML = `<div class="chat-page animate-fadeIn"><div class="chat-list"><div class="chat-list-header"><span class="chat-list-title">Messages</span><button class="btn btn-icon btn-ghost" onclick="App.newChat()">${Icons.edit()}</button></div><div class="chat-search"><input type="text" placeholder="Search conversations..."></div><div class="chat-conversations" id="chat-conversations"><div style="text-align:center;padding:var(--space-6)"><div class="spinner"></div></div></div></div><div class="chat-main" id="chat-main"><div class="chat-empty"><div class="chat-empty-icon"><span class="material-symbols-rounded" style="font-size:48px;font-variation-settings:'FILL' 1">chat_bubble</span></div><p style="font-size:var(--fs-lg);font-weight:var(--fw-semibold)">Select a conversation</p><p style="font-size:var(--fs-sm)">Choose from your chats or start a new one</p></div></div></div>`;
+    c.innerHTML = `<div class="chat-page animate-fadeIn" ><div class="chat-list"><div class="chat-list-header"><span class="chat-list-title">Messages</span><button class="btn btn-icon btn-ghost" onclick="App.newChat()">${Icons.edit()}</button></div><div class="chat-search"><input type="text" placeholder="Search conversations..."></div><div class="chat-conversations" id="chat-conversations"><div style="text-align:center;padding:var(--space-6)"><div class="spinner"></div></div></div></div><div class="chat-main" id="chat-main"><div class="chat-empty"><div class="chat-empty-icon"><span class="material-symbols-rounded" style="font-size:48px;font-variation-settings:'FILL' 1">chat_bubble</span></div><p style="font-size:var(--fs-lg);font-weight:var(--fw-semibold)">Select a conversation</p><p style="font-size:var(--fs-sm)">Choose from your chats or start a new one</p></div></div></div> `;
     try {
       const convos = await Database.getConversations(cu.uid); const html = [];
       for (const cv of convos) { const oid = cv.participants.find(p => p !== cu.uid); const o = await this.getCachedUser(oid); if (o) html.push(Components.chatConvoItem(cv, cu.uid, o)); }
@@ -1527,11 +1506,11 @@ const App = {
 
   // ---- Bookmarks ----
   async renderBookmarks(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn"> <div id="bookmarks-content"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div>`;
+    c.innerHTML = `<div class="feed-container animate-fadeIn" > <div id="bookmarks-content"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div> `;
     const cu = AuthService.getUser();
     try {
       const posts = await Database.getBookmarkedPosts(cu.uid);
-      if (!posts.length) { document.getElementById('bookmarks-content').innerHTML = `<div style="text-align:center;padding:var(--space-20)" ><div style="font-size:48px;margin-bottom:var(--space-4)">🔖</div><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold);margin-bottom:var(--space-2)">Bookmarks</h2><p style="color:var(--text-secondary)">Save posts for later by clicking the bookmark icon.</p></div>`; return; }
+      if (!posts.length) { document.getElementById('bookmarks-content').innerHTML = `<div style = "text-align:center;padding:var(--space-20)" ><div style="font-size:48px;margin-bottom:var(--space-4)">🔖</div><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold);margin-bottom:var(--space-2)">Bookmarks</h2><p style="color:var(--text-secondary)">Save posts for later by clicking the bookmark icon.</p></div> `; return; }
       const html = []; for (const p of posts) { const a = await this.getCachedUser(p.authorId); if (a) html.push(Components.postCard(p, a)); }
       document.getElementById('bookmarks-content').innerHTML = html.join('');
     } catch (e) { document.getElementById('bookmarks-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);padding:var(--space-12)">No bookmarks</p>'; }
@@ -1865,7 +1844,7 @@ const App = {
 
   async startGroupCreation() {
     const c = document.getElementById('content-area');
-    c.innerHTML = `<div class="feed-container animate-fadeIn">
+    c.innerHTML = `<div class="feed-container animate-fadeIn" >
       <button class="btn btn-icon btn-secondary" onclick="App.navigateTo('groups')" style="margin-bottom:var(--space-4)">← Back</button>
       <div class="post-card" style="padding:var(--space-8);max-width:600px;margin:0 auto">
         <h2 style="margin-bottom:var(--space-2)">Create a Community Hub</h2>
@@ -1890,7 +1869,7 @@ const App = {
            </div>
         </div>
       </div>
-    </div>`;
+    </div > `;
   },
 
   async submitGroupCreation() {
@@ -1920,7 +1899,7 @@ const App = {
     const c = document.getElementById('content-area');
     if (!c) return;
 
-    c.innerHTML = `<div class="feed-container animate-fadeIn">
+    c.innerHTML = `<div class="feed-container animate-fadeIn" >
   <div style="margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
     <button class="btn btn-icon btn-secondary" onclick="App.navigateTo('groups')">←</button>
     <div style="font-size:32px">${group.image}</div>
@@ -1930,7 +1909,7 @@ const App = {
     </div>
   </div>
       <div id="group-posts-container"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div>
-    </div> <aside class="right-sidebar">${Components.trendingSidebar([], [])}</aside>`;
+    </div > <aside class="right-sidebar">${Components.trendingSidebar([], [])}</aside>`;
 
     // Simulate loading group specific posts by searching for group name keyword or just general loading
     const posts = await Database.searchPosts(group.name.split(' ')[0]) || await Database.getPosts(10);
@@ -1945,7 +1924,7 @@ const App = {
 
   // ---- Leaderboard ----
   async renderLeaderboard(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn">
+    c.innerHTML = `<div class="feed-container animate-fadeIn" >
       <div style="margin-bottom:var(--space-6);display:flex;justify-content:space-between;align-items:flex-end">
         <div><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Top Tech Minds</h2><p style="color:var(--text-secondary);font-size:var(--fs-sm);margin-top:var(--space-2)">Ranked by contribution, expertise, and community engagement</p></div>
         <button class="btn btn-ghost btn-sm" onclick="Utils.showToast('Post content, help others, and share snippets to earn points!', 'info')">How to earn pts?</button>
@@ -1964,10 +1943,10 @@ const App = {
            <div>🤝 Collaboration: +50 pts</div>
         </div>
       </div>
-    </div>`;
+    </div > `;
     try {
       const leaders = await Database.getLeaderboard();
-      const html = leaders.map(l => `<div class="post-card" style="display:flex;align-items:center;padding:var(--space-4) var(--space-6);margin-bottom:var(--space-2);border:none;background:var(--bg-card)" >
+      const html = leaders.map(l => `<div class="post-card" style = "display:flex;align-items:center;padding:var(--space-4) var(--space-6);margin-bottom:var(--space-2);border:none;background:var(--bg-card)" >
         <div style="font-weight:bold;font-size:var(--fs-xl);width:50px;color:var(--text-tertiary)">#${l.rank}</div>
         <div style="flex:1;display:flex;align-items:center;gap:var(--space-3)">
           <div style="width:40px;height:40px;border-radius:12px;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;font-size:20px">${l.badge}</div>
@@ -1980,7 +1959,7 @@ const App = {
            <div style="color:var(--accent);font-weight:900;font-size:var(--fs-lg)">${Utils.formatNumber(l.score)}</div>
            <div style="font-size:10px;text-transform:uppercase;color:var(--text-tertiary)">Points</div>
         </div>
-      </div>`).join('');
+      </div > `).join('');
       document.getElementById('leaderboard-list').innerHTML = html || '<p>Leaderboard empty.</p>';
     } catch (e) { }
   },
@@ -2042,18 +2021,18 @@ const App = {
 
   // ---- Analytics ----
   async renderAnalytics(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn"><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Analytics Dashboard</h2><p style="color:var(--text-secondary);font-size:var(--fs-sm);margin-top:var(--space-2)">Measure your reach and engagement</p></div>
-    <div id="analytics-content"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div>`;
+    c.innerHTML = `<div class="feed-container animate-fadeIn" ><div style="margin-bottom:var(--space-6)"><h2 style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">Analytics Dashboard</h2><p style="color:var(--text-secondary);font-size:var(--fs-sm);margin-top:var(--space-2)">Measure your reach and engagement</p></div>
+    <div id="analytics-content"><div style="text-align:center;padding:var(--space-8)"><div class="spinner spinner-lg" style="margin:0 auto"></div></div></div></div > `;
     try {
       const u = AuthService.getUser();
       const stats = await Database.getAnalytics(u?.uid);
       c.querySelector('#analytics-content').innerHTML = `
-  <div class="hero-stats-grid" style="grid-template-columns:repeat(2,1fr)" >
+  <div class="hero-stats-grid" style = "grid-template-columns:repeat(2,1fr)" >
           <div class="hero-stat-card"><div class="hero-stat-label">Profile Views</div><div class="hero-stat-value" style="font-size:32px">${Utils.formatNumber(stats.views)}</div></div>
           <div class="hero-stat-card"><div class="hero-stat-label">Post Impressions</div><div class="hero-stat-value" style="font-size:32px">${Utils.formatNumber(stats.impressions)}</div></div>
           <div class="hero-stat-card"><div class="hero-stat-label">Interactions</div><div class="hero-stat-value" style="font-size:32px">${Utils.formatNumber(stats.interactions)}</div></div>
           <div class="hero-stat-card"><div class="hero-stat-label">Growth (30d)</div><div class="hero-stat-value" style="color:var(--accent);font-size:32px">${stats.growth}</div></div>
-        </div>
+        </div >
   `;
     } catch (e) { }
   },
@@ -2191,7 +2170,7 @@ const App = {
     const c = document.getElementById('content-area');
     if (!s || !c) return;
 
-    c.innerHTML = `<div class="feed-container animate-fadeIn">
+    c.innerHTML = `<div class="feed-container animate-fadeIn" >
       <button class="btn btn-icon btn-secondary" onclick="App.navigateTo('snippets')" style="margin-bottom:var(--space-4)">← Back to Snippets</button>
       <div class="post-card" style="padding:var(--space-8)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-6)">
@@ -2218,8 +2197,8 @@ const App = {
            </div>
            <span style="font-size:12px;color:var(--text-tertiary)">Verified by TechOL Community</span>
         </div>
-      </div>
-    </div>`;
+      </div >
+    </div > `;
   },
 
 
@@ -2234,7 +2213,7 @@ const App = {
     const courses = LiveData.getCourses(this._courseFilter);
 
     c.innerHTML = `
-  <div class="learning-hub-container animate-fadeIn">
+  < div class="learning-hub-container animate-fadeIn" >
       <div style="margin-bottom:var(--space-10);text-align:center;max-width:800px;margin-left:auto;margin-right:auto">
         <h2 style="font-size:var(--fs-4xl);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight);background:var(--gradient-accent);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block;margin-bottom:var(--space-2)">Learning Hub</h2>
         <p style="color:var(--text-secondary);font-size:var(--fs-lg);line-height:1.6">Master the world's most in-demand technologies with certified courses from Harvard, Stanford, MIT, and industry leaders.</p>
@@ -2262,14 +2241,14 @@ const App = {
         </div>
       ` : ''
       }
-    </div>`;
+    </div > `;
   },
 
   // ---- Hackathons (LiveData - 12 real hackathons) ----
   renderHackathons(c) {
     const hacks = LiveData.hackathons;
     c.innerHTML = `
-  <div class="feed-container animate-fadeIn">
+  < div class="feed-container animate-fadeIn" >
       <div style="margin-bottom:var(--space-8)">
         <h2 style="font-size:var(--fs-3xl);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight)">Hackathons & Competitions</h2>
         <p style="color:var(--text-secondary);font-size:var(--fs-md);margin-top:var(--space-2)">Real hackathons from MLH, Devpost, Kaggle, ETHGlobal and more. Links go directly to each platform.</p>
@@ -2308,135 +2287,88 @@ const App = {
           </div>
         `).join('')}
       </div>
-    </div>`;
+    </div > `;
   },
 
   async renderNews(c) {
-    const cats = [
-      { key: 'all', label: 'All' },
-      { key: 'ai', label: 'AI' },
-      { key: 'startups', label: 'Startups' },
-      { key: 'dev', label: 'Dev' },
-      { key: 'tech', label: 'Tech' },
-      { key: 'security', label: 'Security' },
-      { key: 'web3', label: 'Web3' },
-    ];
-
     c.innerHTML = `
-    <div class="feed-container animate-fadeIn">
-      <div style="margin-bottom:var(--space-6)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-4)">
-          <div>
-            <h2 style="font-size:var(--fs-3xl);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight);margin-bottom:var(--space-1)">Live Tech News</h2>
-            <p style="color:var(--text-secondary);font-size:var(--fs-sm)">Real-time from TechCrunch, Hacker News, The Verge, VentureBeat & 20+ sources</p>
-          </div>
-          <button id="news-refresh-btn" onclick="App._refreshNewsPage()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--bg-input);border:1px solid var(--border-primary);border-radius:var(--radius-full);font-size:11px;font-weight:700;color:var(--text-secondary);cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-primary)'">
-            <span class="material-symbols-outlined" style="font-size:14px">refresh</span> Refresh
-          </button>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${cats.map((cat, i) => `<button class="news-cat-tab${i===0?' active':''}" data-cat="${cat.key}" onclick="App._filterNews('${cat.key}',this)">${cat.label}</button>`).join('')}
-        </div>
+  < div class="feed-container animate-fadeIn" >
+      <div style="margin-bottom:var(--space-8)">
+        <h2 style="font-size:var(--fs-3xl);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight)">Live Tech News</h2>
+        <p style="color:var(--text-secondary);font-size:var(--fs-md);margin-top:var(--space-2)">Aggregated from TechCrunch, The Verge, Hacker News, Ars Technica, and 20+ more sources.</p>
       </div>
       <div id="news-list">
-        ${[1,2,3,4,5,6].map(()=>`
-        <div class="post-card" style="padding:var(--space-5);margin-bottom:var(--space-3)">
-          <div style="display:flex;gap:var(--space-4)">
-            <div style="width:80px;height:56px;border-radius:var(--radius-md);background:var(--bg-input);flex-shrink:0">
-              <div class="shimmer-line" style="width:100%;height:100%;margin:0;border-radius:var(--radius-md)"></div>
-            </div>
-            <div style="flex:1">
-              <div class="shimmer-line" style="width:30%;height:8px"></div>
-              <div class="shimmer-line" style="width:90%;height:12px;margin-top:8px"></div>
-              <div class="shimmer-line" style="width:70%;height:10px;margin-top:6px"></div>
-            </div>
-          </div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-
-    // Render from live buffer immediately
-    const bufferNews = window.LiveNewsEngine?.getBuffer(50) || [];
-    if (bufferNews.length > 0) {
-      App._renderNewsArticles(bufferNews, 'all');
-    }
-
-    // Also fetch fresh from LiveData RSS
-    try {
-      if (window.LiveData) {
-        const fresh = await LiveData.getNews(50);
-        if (fresh.length > 0) App._renderNewsArticles(fresh, App._newsCat || 'all');
-      }
-    } catch(e) {}
-
-    // Re-render on news updates
-    window.removeEventListener('newsUpdated', App._newsUpdateHandler);
-    App._newsUpdateHandler = (e) => App._renderNewsArticles(e.detail, App._newsCat || 'all');
-    window.addEventListener('newsUpdated', App._newsUpdateHandler);
-  },
-
-  _newsCat: 'all',
-  _newsUpdateHandler: null,
-
-  _filterNews(cat, btn) {
-    this._newsCat = cat;
-    document.querySelectorAll('.news-cat-tab').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    const all = window.LiveNewsEngine?.getBuffer(50) || [];
-    this._renderNewsArticles(all, cat);
-  },
-
-  async _refreshNewsPage() {
-    const btn = document.getElementById('news-refresh-btn');
-    if (btn) btn.innerHTML = '<span class="material-symbols-outlined spin" style="font-size:14px">refresh</span> Fetching...';
-    if (window.LiveNewsEngine) await LiveNewsEngine.fetchNews();
-    if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">refresh</span> Refresh';
-  },
-
-  _renderNewsArticles(articles, cat = 'all') {
-    const nl = document.getElementById('news-list');
-    if (!nl) return;
-    const filtered = cat === 'all' ? articles : articles.filter(a => a.category === cat);
-    const toShow = filtered.slice(0, 40);
-
-    if (toShow.length === 0) {
-      nl.innerHTML = `<div style="text-align:center;padding:var(--space-12);color:var(--text-tertiary)">
-        <div style="font-size:32px;margin-bottom:16px">📡</div>
-        <p>No ${cat === 'all' ? '' : cat + ' '}articles found. Try refreshing.</p>
-      </div>`;
-      return;
-    }
-
-    nl.innerHTML = toShow.map((a, idx) => `
-    <article class="post-card news-article-card animate-fadeInUp stagger-${Math.min(idx+1,6)}"
-      style="padding:var(--space-5) var(--space-6);margin-bottom:var(--space-3);"
-      onclick="${a.link && a.link!=='#' ? `window.open('${a.link.replace(/'/g,"\'")}','_blank')` : ''}">
-      <div style="display:flex;gap:var(--space-4);align-items:flex-start">
-        ${a.thumbnail ? `
-        <div style="width:88px;height:62px;border-radius:var(--radius-md);overflow:hidden;flex-shrink:0;background:var(--bg-input)">
-          <img src="${a.thumbnail}" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.parentElement.style.display='none'">
-        </div>` : ''}
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-            <span style="font-size:13px">${a.sourceIcon || '📰'}</span>
-            <span style="font-size:11px;font-weight:700;color:var(--accent)">${a.source}</span>
-            <span style="font-size:11px;color:var(--text-tertiary)">· ${Utils.timeAgo(a.pubDate || a.createdAt)}</span>
-            ${a.isLive ? '<span class="live-badge">LIVE</span>' : ''}
-            ${a.category ? `<span style="font-size:9px;font-weight:800;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;background:var(--bg-input);padding:2px 6px;border-radius:4px">${a.category}</span>` : ''}
-          </div>
-          <h3 style="font-size:var(--fs-base);font-weight:var(--fw-bold);line-height:1.45;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--text-primary)">${a.title}</h3>
-          ${a.description ? `<p style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0">${a.description}</p>` : ''}
+        <div style="text-align:center;padding:var(--space-12)">
+          <div class="spinner spinner-lg" style="margin:0 auto"></div>
+          <p style="color:var(--text-tertiary);margin-top:var(--space-4)">Fetching latest news from 25+ sources...</p>
         </div>
-        ${a.link && a.link!=='#' ? `<span class="material-symbols-outlined" style="font-size:16px;color:var(--text-tertiary);flex-shrink:0;margin-top:2px">open_in_new</span>` : ''}
       </div>
-    </article>`).join('');
-  },,
+    </div > `;
+    try {
+      const articles = await LiveData.getNews(30);
+      const nl = document.getElementById('news-list');
+      if (!nl) return;
+      if (articles.length === 0) {
+        nl.innerHTML = '<div style="text-align:center;padding:var(--space-12);color:var(--text-tertiary)"><p>Unable to fetch news right now. Please try again later.</p></div>';
+        return;
+      }
+      nl.innerHTML = articles.map(a => `
+  < article class="post-card" style = "padding:var(--space-5) var(--space-6);margin-bottom:var(--space-4);transition:transform 0.2s ease;cursor:pointer"
+onmouseover = "this.style.transform='translateY(-2px)'" onmouseout = "this.style.transform=''"
+onclick = "window.open('${a.link}','_blank')" >
+  <div style="display:flex;gap:var(--space-4);align-items:flex-start">
+    ${a.thumbnail ? `<div style="width:100px;height:70px;border-radius:var(--radius-md);overflow:hidden;flex-shrink:0;background:var(--bg-input)"><img src="${a.thumbnail}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'"></div>` : ''}
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1)">
+        <span style="font-size:14px">${a.sourceIcon}</span>
+        <span style="font-size:11px;font-weight:600;color:var(--accent)">${a.source}</span>
+        <span style="font-size:11px;color:var(--text-tertiary)">· ${Utils.timeAgo(a.pubDate)}</span>
+      </div>
+      <h3 style="font-size:var(--fs-md);font-weight:var(--fw-bold);line-height:1.4;margin-bottom:var(--space-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${a.title}</h3>
+      <p style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0">${a.description}</p>
+    </div>
+  </div>
+        </article > `).join('');
+    } catch (e) {
+      const nl = document.getElementById('news-list');
+      if (nl) nl.innerHTML = '<div style="text-align:center;padding:var(--space-12);color:var(--text-tertiary)"><p>Error loading news. Please try again.</p></div>';
+    }
+  },
 
 
   // ---- Static Pages ----
+  renderAbout(c) {
+    c.innerHTML = `
+  < div class="feed-container animate-fadeIn" >
+    <div class="post-card" style="padding:var(--space-8); text-align:center;">
+      <h2 style="font-size:32px;font-weight:bold;margin-bottom:var(--space-2)">About TechOL</h2>
+      <div style="font-size:16px; color:var(--accent); font-weight:700; margin-bottom:var(--space-8); letter-spacing:1px; text-transform:uppercase;">The Future of Market Analysis</div>
+
+      <div style="background:var(--bg-input); padding:var(--space-6); border-radius:16px; border:1px solid var(--border-secondary); margin-bottom:var(--space-8);">
+        <div style="width:100px; height:100px; border-radius:50%; background:var(--gradient-accent); margin:0 auto var(--space-4); display:flex; align-items:center; justify-content:center; border:4px solid var(--bg-card);">
+          <span style="font-size:40px;">👨‍💻</span>
+        </div>
+        <h3 style="font-size:24px; font-weight:800; color:var(--text-primary); margin-bottom:var(--space-1);">Vihaan Sankhla</h3>
+        <div style="color:var(--accent); font-size:14px; font-weight:700; margin-bottom:var(--space-3);">Developer & Founder</div>
+        <div style="display:inline-block; padding:4px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; font-size:12px; font-weight:600; color:var(--text-secondary);">
+          17 Yrs Entrepreneur
+        </div>
+      </div>
+
+      <p style="color:var(--text-secondary);line-height:1.7;margin-bottom:var(--space-4);text-align:left;font-size:15px;">
+        TechOL is an advanced intelligence layer and market analysis platform designed exclusively for founders, analysts, and tech enthusiasts.
+        By pulling authentic and real-time data automatically every minute, it provides an unparalleled edge.
+      </p>
+      <p style="color:var(--text-secondary);line-height:1.7;text-align:left;font-size:15px;">
+        Created by 17-year-old entrepreneur Vihaan Sankhla, the platform focuses on bridging the gap between raw data and actionable insights—helping you see what others miss out on.
+      </p>
+    </div>
+    </div > `;
+  },
+
   renderAnalysis(c) {
     c.innerHTML = `
-  <div class="feed-container animate-fadeIn">
+  < div class="feed-container animate-fadeIn" >
         <div style="margin-bottom:var(--space-8)">
             <h2 style="font-size:var(--fs-3xl);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight)">Data Analysis Dashboard</h2>
             <p style="color:var(--text-secondary);font-size:var(--fs-md);margin-top:var(--space-2)">Personalize your charts to identify market gaps that other founders miss.</p>
@@ -2461,7 +2393,7 @@ const App = {
                 <canvas id="fundingChart" width="200" height="150"></canvas>
             </div>
         </div>
-    </div>`;
+    </div > `;
 
     setTimeout(() => {
       // Render Chart.js
@@ -2517,7 +2449,7 @@ const App = {
 
   renderAbout(c) {
     c.innerHTML = `
-  <div class="feed-container animate-fadeIn">
+  < div class="feed-container animate-fadeIn" >
         <div class="post-card" style="padding:var(--space-10); text-align:center; background:linear-gradient(135deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 100%);">
             <h1 style="font-size:clamp(32px, 5vw, 64px); font-weight:900; margin-bottom:24px; letter-spacing:-2px;">TechOL Intelligence</h1>
             <p style="font-size:18px; color:var(--text-secondary); max-width:700px; margin:0 auto 40px; line-height:1.7;">
@@ -2553,11 +2485,11 @@ const App = {
              <p style="color:var(--text-tertiary); margin-bottom:24px;">Built for the 1% of founders who treat building like a science.</p>
              <button class="btn btn-primary" onclick="App.navigateTo('feed')">Back to Terminal</button>
         </div>
-    </div>`;
+    </div > `;
   },
 
   renderContact(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn"> <div class="post-card" style="padding:var(--space-8)">
+    c.innerHTML = `< div class="feed-container animate-fadeIn" > <div class="post-card" style="padding:var(--space-8)">
   <h2 style="font-size:32px;font-weight:bold;margin-bottom:var(--space-4)">Contact Us</h2>
   <div style="display:flex;flex-direction:column;gap:var(--space-4)">
     <div><strong>Email:</strong> support@techol.dev</div>
@@ -2568,10 +2500,10 @@ const App = {
     <textarea style="width:100%;height:100px;background:var(--bg-input);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:var(--space-3);color:var(--text-primary)" placeholder="How can we help?"></textarea>
     <button class="btn btn-primary" style="margin-top:var(--space-3)" onclick="Utils.showToast('Message sent!','success')">Send Message</button>
   </div>
-</div></div>`;
+</div></div > `;
   },
   renderPrivacy(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn"> <div class="post-card" style="padding:var(--space-8)">
+    c.innerHTML = `< div class="feed-container animate-fadeIn" > <div class="post-card" style="padding:var(--space-8)">
   <h2 style="font-size:32px;font-weight:bold;margin-bottom:var(--space-4)">Privacy Policy</h2>
   <div style="color:var(--text-secondary);line-height:1.6">
     <p><strong>Last Updated: October 2026</strong></p>
@@ -2583,7 +2515,7 @@ const App = {
   renderAlerts(container) {
     if (!container) return;
     container.innerHTML = `
-    <div class="alerts-dashboard animate-fadeIn" style="padding:var(--space-8)" >
+    < div class="alerts-dashboard animate-fadeIn" style = "padding:var(--space-8)" >
         <div style="margin-bottom: var(--space-8)">
             <h2 style="font-size:32px; font-weight:900; letter-spacing:-1px">Intelligence Alert Command</h2>
             <p style="color:var(--text-tertiary); margin-top:4px">Configure real-time triggers for market signals and capital movement.</p>
@@ -2612,11 +2544,11 @@ const App = {
                 <div style="text-align:center; padding:40px; color:var(--text-tertiary); font-size:14px; background:rgba(255,255,255,0.02); border-radius:12px">No triggers in the last 24h. System standing by.</div>
             </div>
         </div>
-     </div>
+     </div >
   `;
   },
   renderLegal(c) {
-    c.innerHTML = `<div class="feed-container animate-fadeIn"> <div class="post-card" style="padding:var(--space-8)">
+    c.innerHTML = `< div class="feed-container animate-fadeIn" > <div class="post-card" style="padding:var(--space-8)">
   <h2 style="font-size:32px;font-weight:bold;margin-bottom:var(--space-4)">Legal & Terms</h2>
   <div style="color:var(--text-secondary);line-height:1.6">
     <p><strong>Terms of Service</strong></p>
@@ -2634,7 +2566,7 @@ const App = {
     const curTheme = localStorage.getItem('techol_theme') || 'dark';
 
     c.innerHTML = `
-    <div class="feed-container animate-fadeIn" style="max-width:700px;margin:0 auto" >
+    < div class="feed-container animate-fadeIn" style = "max-width:700px;margin:0 auto" >
       <div style="margin-bottom:var(--space-8)">
         <h2 style="font-size:var(--fs-3xl);font-weight:var(--fw-bold)">Settings</h2>
         <p style="color:var(--text-secondary)">Manage your professional identity and preferences</p>
@@ -2726,7 +2658,7 @@ const App = {
         <button class="btn btn-primary" onclick="App.logout()" style="width:100%;max-width:300px;font-weight:700;box-shadow:var(--shadow-glow);">Sign out of TechOL</button>
         <p style="margin-top:12px; font-size:12px; color:var(--text-tertiary);">You will be securely disconnected.</p>
       </div>
-    </div>`;
+    </div > `;
   },
 
   async saveSettings() {
@@ -2769,7 +2701,7 @@ const App = {
 
     // Set loading state
     btn.disabled = true;
-    btn.innerHTML = `<div class="spinner spinner-xs" style="border-top-color:#000" ></div>`;
+    btn.innerHTML = `< div class="spinner spinner-xs" style = "border-top-color:#000" ></div > `;
 
     try {
       let imageURL = null;
@@ -2931,10 +2863,10 @@ const App = {
   editProfile() {
     const user = AuthService.getUser(); if (!user) return; const m = document.getElementById('modal-content');
     m.innerHTML = `
-  <div class="modal-header" >
+  < div class="modal-header" >
       <span class="modal-title">Edit Professional Profile</span>
       <button class="modal-close" onclick="App.closeModal()">×</button>
-    </div>
+    </div >
   <div class="modal-body" style="padding:var(--space-6)">
     <form class="auth-form" onsubmit="App.saveProfile(event)" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)">
       <div class="input-group" style="grid-column:span 2"><label class="input-label">Full Name</label><input type="text" class="input-field" id="edit-name" value="${user.displayName || ''}" required></div>
@@ -3007,7 +2939,7 @@ const App = {
   async deleteAccount() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (!confirm('This will permanently delete all your data. Continue?')) return; try { await AuthService.deleteAccount(); location.hash = '#landing'; Utils.showToast('Account deleted', 'info'); } catch (e) { Utils.showToast(e.message, 'error'); } },
 
   // ---- Events ----
-  createEvent() { const m = document.getElementById('modal-content'); m.innerHTML = `<div class="modal-header" ><span class="modal-title">Create Event</span><button class="modal-close" onclick="App.closeModal()">×</button></div> <div class="modal-body"><form class="auth-form" onsubmit="App.submitEvent(event)"><div class="input-group"><label class="input-label">Event Title</label><input type="text" class="input-field" id="ev-title" required></div><div class="input-group"><label class="input-label">Description</label><textarea class="input-field" id="ev-desc" rows="3" required></textarea></div><div class="input-group"><label class="input-label">Date</label><input type="date" class="input-field" id="ev-date" required></div><div class="input-group"><label class="input-label">Time</label><input type="text" class="input-field" id="ev-time" placeholder="e.g. 10:00 AM" required></div><div class="input-group"><label class="input-label">Location</label><input type="text" class="input-field" id="ev-location" required></div><div style="display:flex;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-4)"><button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Create</button></div></form></div>`; document.getElementById('modal-overlay').classList.remove('hidden'); },
+  createEvent() { const m = document.getElementById('modal-content'); m.innerHTML = `< div class="modal-header" ><span class="modal-title">Create Event</span><button class="modal-close" onclick="App.closeModal()">×</button></div > <div class="modal-body"><form class="auth-form" onsubmit="App.submitEvent(event)"><div class="input-group"><label class="input-label">Event Title</label><input type="text" class="input-field" id="ev-title" required></div><div class="input-group"><label class="input-label">Description</label><textarea class="input-field" id="ev-desc" rows="3" required></textarea></div><div class="input-group"><label class="input-label">Date</label><input type="date" class="input-field" id="ev-date" required></div><div class="input-group"><label class="input-label">Time</label><input type="text" class="input-field" id="ev-time" placeholder="e.g. 10:00 AM" required></div><div class="input-group"><label class="input-label">Location</label><input type="text" class="input-field" id="ev-location" required></div><div style="display:flex;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-4)"><button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Create</button></div></form></div>`; document.getElementById('modal-overlay').classList.remove('hidden'); },
 
   async submitEvent(e) { e.preventDefault(); const cu = AuthService.getUser(); if (!cu) return; await Database.createEvent({ title: document.getElementById('ev-title').value, description: document.getElementById('ev-desc').value, date: document.getElementById('ev-date').value, time: document.getElementById('ev-time').value, location: document.getElementById('ev-location').value, createdBy: cu.uid, companyId: cu.uid }); this.closeModal(); this.navigateTo('events'); Utils.showToast('Event created! 📅', 'success'); },
 
@@ -3015,11 +2947,11 @@ const App = {
 
   // ---- Comments ----
   async showComments(postId) {
-    const m = document.getElementById('modal-content'); m.innerHTML = `<div class="modal-header" ><span class="modal-title">Comments</span><button class="modal-close" onclick="App.closeModal()">×</button></div><div class="modal-body" id="comments-list" style="max-height:400px;overflow-y:auto"><div style="text-align:center;padding:var(--space-6)"><div class="spinner"></div></div></div><div style="padding:var(--space-4) var(--space-6);border-top:1px solid var(--border-secondary);display:flex;gap:var(--space-3)"><input type="text" class="input-field" placeholder="Write a comment..." id="comment-input" onkeydown="if(event.key==='Enter')App.addComment('${postId}')"><button class="btn btn-primary btn-sm" onclick="App.addComment('${postId}')">Post</button></div>`;
+    const m = document.getElementById('modal-content'); m.innerHTML = `< div class="modal-header" ><span class="modal-title">Comments</span><button class="modal-close" onclick="App.closeModal()">×</button></div ><div class="modal-body" id="comments-list" style="max-height:400px;overflow-y:auto"><div style="text-align:center;padding:var(--space-6)"><div class="spinner"></div></div></div><div style="padding:var(--space-4) var(--space-6);border-top:1px solid var(--border-secondary);display:flex;gap:var(--space-3)"><input type="text" class="input-field" placeholder="Write a comment..." id="comment-input" onkeydown="if(event.key==='Enter')App.addComment('${postId}')"><button class="btn btn-primary btn-sm" onclick="App.addComment('${postId}')">Post</button></div>`;
     document.getElementById('modal-overlay').classList.remove('hidden');
     try {
       const comments = await Database.getComments(postId); const html = [];
-      for (const cm of comments) { const a = await this.getCachedUser(cm.authorId); if (a) html.push(`<div style="display:flex;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border-secondary)" > ${Components.avatar(a, 'avatar-sm')} <div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semibold)">${a.displayName} <span style="color:var(--text-tertiary);font-weight:normal">· ${Utils.timeAgo(cm.createdAt)}</span></div><div style="font-size:var(--fs-sm);color:var(--text-secondary);margin-top:2px">${Utils.escapeHtml(cm.text)}</div></div></div>`); }
+      for (const cm of comments) { const a = await this.getCachedUser(cm.authorId); if (a) html.push(`< div style = "display:flex;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border-secondary)" > ${Components.avatar(a, 'avatar-sm')} <div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semibold)">${a.displayName} <span style="color:var(--text-tertiary);font-weight:normal">· ${Utils.timeAgo(cm.createdAt)}</span></div><div style="font-size:var(--fs-sm);color:var(--text-secondary);margin-top:2px">${Utils.escapeHtml(cm.text)}</div></div></div > `); }
       document.getElementById('comments-list').innerHTML = html.join('') || '<p style="text-align:center;color:var(--text-tertiary);padding:var(--space-6)">No comments yet</p>';
     } catch (e) { document.getElementById('comments-list').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);padding:var(--space-6)">No comments yet</p>'; }
   },
@@ -3034,7 +2966,7 @@ const App = {
     const url = window.location.origin + window.location.pathname + '#feed?post=' + postId;
     const m = document.getElementById('modal-content');
     document.getElementById('modal-overlay').classList.remove('hidden');
-    m.innerHTML = `<div class="modal-header" ><span class="modal-title">Share Post</span><button class="modal-close" onclick="App.closeModal()">×</button></div>
+    m.innerHTML = `< div class="modal-header" ><span class="modal-title">Share Post</span><button class="modal-close" onclick="App.closeModal()">×</button></div >
   <div class="modal-body" style="text-align:center">
     <div style="display:flex;justify-content:center;gap:var(--space-4);margin-bottom:var(--space-6)">
       <button class="btn btn-icon" style="width:60px;height:60px;border-radius:50%;background:#1DA1F2;color:white;font-size:24px" onclick="window.open('https://twitter.com/intent/tweet?url='+encodeURIComponent('${url}'))">🐦</button>
@@ -3068,9 +3000,9 @@ const App = {
     menu.style.top = '100%';
     menu.style.right = '0';
     menu.innerHTML = `
-  <div class="dropdown-item" onclick="App.sharePost('${id}'); document.getElementById('post-menu-${id}').classList.add('hidden')" >
+  < div class="dropdown-item" onclick = "App.sharePost('${id}'); document.getElementById('post-menu-${id}').classList.add('hidden')" >
     ${Icons.ms('link')} <span>Copy Link</span>
-      </div>
+      </div >
       <div class="dropdown-item" onclick="App.bookmarkPost('${id}'); document.getElementById('post-menu-${id}').classList.add('hidden')">
         ${Icons.ms('bookmark')} <span>Bookmark</span>
       </div>
@@ -3087,7 +3019,7 @@ const App = {
     if (input.files[0] && a) {
       const u = URL.createObjectURL(input.files[0]);
       a.innerHTML = `
-  <div class="image-preview" style="position:relative; margin-top:12px; border-radius:12px; overflow:hidden; border:1px solid var(--border-primary)" >
+  < div class="image-preview" style = "position:relative; margin-top:12px; border-radius:12px; overflow:hidden; border:1px solid var(--border-primary)" >
     <img src="${u}" style="width:100%; display:block; max-height:300px; object-fit:cover">
       <div class="remove-btn" onclick="App.clearImagePreview()"
         style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; backdrop-filter:blur(4px)">✕</div>
